@@ -1,7 +1,7 @@
 # Site settings. Anything you leave out keeps its default.
 
 name = "imasou"            # used in page titles and the feed
-description = ""
+description = "Mechanical Engineering with Robotics student at Sussex University."
 address = "ima.jsoun.net"       # the large text in the top bar; it links to the home page
 status = "static"             # shown next to the address, followed by the build month and year
 url = "https://ima.jsoun.net/"  # public address of the site (only used for the local feed below)
