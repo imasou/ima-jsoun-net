@@ -11,11 +11,12 @@ feed_url = ""                 # point at a feed elsewhere, e.g. "https://blog.ex
 feed_page = ""                # or build a local atom.xml from a page in content/, e.g. "notes"
 
 inline_css = true             # copy style.css into every page (fewer requests, no unstyled flash)
-pdf_preview = "viewer"        # "viewer" = the browser's PDF viewer, "images" = pages rendered at build time
+pdf_preview = "images"        # "viewer" = the browser's PDF viewer (blocks the back/forward cache), "images" = pages rendered at build time
 preload_fonts = [             # fonts in static/fonts/ that are used above the fold
   "im-fell-english-latin-400-normal.woff2",
   "im-fell-english-latin-400-italic.woff2",
   "jetbrains-mono-latin-400-normal.woff2",
+  "jetbrains-mono-latin-700-normal.woff2",   # headings are bold and above the fold
 ]
 
 # Optional extra link at the end of the page list, for another site of yours.

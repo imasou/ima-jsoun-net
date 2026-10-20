@@ -11,6 +11,7 @@
   --muted: #8c8b87;
   --rule: #323231;
   --code-bg: #1c1c1b;
+  --dim: 0.56;   /* opacity of the dimmed side-list links: --fg over --bg looks like --muted */
   --bar-h: 5rem;
   --list-h: min(20rem, calc(100vh - var(--bar-h) - 6rem));
   --mono: "JetBrains Mono", ui-monospace, Consolas, "Cascadia Mono", monospace;
@@ -24,6 +25,7 @@ html[data-theme="light"] {
   --muted: #6d6c67;
   --rule: #d9d6ce;
   --code-bg: #eae7df;
+  --dim: 0.63;
 }
 * { box-sizing: border-box; }
 html {
@@ -151,12 +153,12 @@ details:not([open]) > summary > :is(h1, h2, h3) { margin-bottom: 0; }
 .track { margin: auto 0; padding: calc(var(--list-h) * 0.6) 0; }
 .side a {
   display: block; padding: 0.25rem 0.8rem;
-  color: var(--muted); text-decoration: none;
-  transition: color 0.2s, box-shadow 0.2s;
+  color: var(--fg); opacity: var(--dim); text-decoration: none;
+  transition: opacity 0.2s;   /* opacity is composited; animating color or box-shadow is not */
 }
 .sections a { box-shadow: inset -2px 0 0 transparent; }
 .pages a { box-shadow: inset 2px 0 0 transparent; }
-.side a:hover, .side a:focus-visible, .side a[aria-current] { color: var(--fg); }
+.side a:hover, .side a:focus-visible, .side a[aria-current] { opacity: 1; }
 .sections a[aria-current] { box-shadow: inset -2px 0 0 var(--fg); }
 .pages a[aria-current] { box-shadow: inset 2px 0 0 var(--fg); }
 .side a.ext::after { content: " ↗"; }

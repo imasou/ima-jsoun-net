@@ -10,7 +10,6 @@ Settings live in site.toml. See README.md for the full guide.
 from __future__ import annotations
 
 import argparse
-import base64
 import datetime
 import functools
 import html
@@ -22,7 +21,7 @@ import shutil
 import struct
 import subprocess
 from dataclasses import dataclass, field
-from urllib.parse import urljoin
+from urllib.parse import quote, urljoin
 
 import markdown
 from markdown.extensions.toc import slugify
@@ -33,6 +32,11 @@ except ModuleNotFoundError:  # pragma: no cover
     import tomli as tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parent
+
+# Phone-sized widths for the resume preview images. The full-size render is always added as the
+# largest one, so the browser picks the smallest file that is still sharp on its screen.
+PREVIEW_WIDTHS = (480, 720, 960)
+PREVIEW_QUALITY = 70   # WebP quality; plenty for text, and much smaller than PNG
 
 # Runs in <head> before first paint, so a saved light-theme choice does not flash dark.
 # It also tells the browser which colour scheme to use for its own default background.
@@ -235,6 +239,38 @@ class Site:
                 page.get_pixmap(dpi=130).save(out / f"{pdf.stem}-{i}.png")
         return [p.name for p in sorted(out.glob(f"{pdf.stem}-*.png"))]
 
+    def _preview_img(self, href: str, png: pathlib.Path, dest: pathlib.Path, alt: str,
+                     sizes: str = "calc(100vw - 3rem)") -> str:
+        """Write one rendered page into dest/ and return its <a><img> tag.
+
+        With Pillow installed the page becomes several WebP files of different widths (srcset), so a
+        phone downloads one small file instead of a full-size PNG. Without it, the PNG is copied as is.
+        """
+        w, h = png_size(png)
+        try:
+            from PIL import Image
+        except ImportError:
+            print("! Pillow is not installed, so the resume preview stays a full-size PNG (pip install pillow)")
+            shutil.copyfile(png, dest / png.name)
+            return (f'<a href="{href}"><img src="preview/{quote(png.name)}" width="{w}" height="{h}" '
+                    f'loading="lazy" decoding="async" alt="{html.escape(alt)}"></a>')
+        widths = sorted({x for x in PREVIEW_WIDTHS if x < w} | {w})
+        entries = []
+        with Image.open(png) as master:
+            master = master.convert("RGB")
+            for width in widths:
+                name = f"{png.stem}-{width}.webp"
+                img = master if width == w else master.resize((width, round(h * width / w)), Image.LANCZOS)
+                img.save(dest / name, "WEBP", quality=PREVIEW_QUALITY, method=6)
+                entries.append((name, width))
+        fallback = entries[min(1, len(entries) - 1)][0]   # for browsers that ignore srcset
+        srcset = ", ".join(f"preview/{quote(n)} {x}w" for n, x in entries)
+        # sizes: how wide the image is drawn, so the browser can pick a file. The default is the narrow
+        # layout, where it fills the column (the viewport minus 1.5rem padding on each side).
+        return (f'<a href="{href}"><img src="preview/{quote(fallback)}" srcset="{srcset}" '
+                f'sizes="{sizes}" width="{w}" height="{h}" loading="lazy" decoding="async" '
+                f'alt="{html.escape(alt)}"></a>')
+
     def expand_pdfs(self, body: str) -> str:
         """Turn the Markdown image ![label](file.pdf) into a collapsible preview."""
         def repl(m: re.Match) -> str:
@@ -242,14 +278,14 @@ class Site:
             pdf = self.static / src
             pages = self._render_pdf(pdf) if self.cfg.pdf_preview == "images" and pdf.exists() else []
             if pages:
-                tags = []
-                for i, name in enumerate(pages, 1):
-                    png = self.cache / "preview" / name
-                    w, h = png_size(png)
-                    data = base64.b64encode(png.read_bytes()).decode()
-                    tags.append(f'<a href="{src}"><img src="data:image/png;base64,{data}" width="{w}" '
-                                f'height="{h}" alt="{html.escape(pdf.name)}, page {i}"></a>')
-                inner = "\n".join(tags)
+                # Real image files (not data: URIs), so the HTML stays small and the browser can lazy-load.
+                # No PDF plugin is embedded, which also keeps the page eligible for the back/forward cache.
+                dest = self.out / "preview"
+                dest.mkdir(exist_ok=True)
+                inner = "\n".join(
+                    self._preview_img(src, self.cache / "preview" / name, dest, f"{pdf.name}, page {i}",
+                                      sizes="(max-width: 64rem) calc(100vw - 3rem), 36rem")
+                    for i, name in enumerate(pages, 1))
             else:
                 inner = (f'<object data="{src}#toolbar=0&amp;navpanes=0&amp;view=FitH" '
                          f'type="application/pdf" aria-label="{html.escape(label)}">'
@@ -264,13 +300,9 @@ class Site:
                 if names:
                     dest = self.out / "preview"
                     dest.mkdir(exist_ok=True)
-                    tags = []
-                    for i, name in enumerate(names, 1):
-                        png = self.cache / "preview" / name
-                        shutil.copyfile(png, dest / name)
-                        w, h = png_size(png)
-                        tags.append(f'<a href="{src}"><img src="preview/{name}" width="{w}" height="{h}" '
-                                    f'loading="lazy" decoding="async" alt="{html.escape(pdf.name)}, page {i}"></a>')
+                    tags = [self._preview_img(src, self.cache / "preview" / name, dest,
+                                              f"{pdf.name}, page {i}")
+                            for i, name in enumerate(names, 1)]
                     return (f'<details class="preview" open>\n<summary>{html.escape(label)}</summary>\n'
                             f'<div class="pdf pdf-viewer">\n{inner}\n</div>\n'
                             f'<div class="pdf pdf-images">\n' + "\n".join(tags) + '\n</div>\n</details>')

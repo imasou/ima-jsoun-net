@@ -195,6 +195,43 @@ class BuildTests(unittest.TestCase):
         self.assertIn('<details class="preview" open>', index)
         self.assertIn('<object data="resume.pdf#toolbar=0', index)
 
+    def test_pdf_preview_is_responsive_webp(self):
+        try:
+            import fitz  # pymupdf
+            import PIL   # noqa: F401
+        except ImportError:
+            self.skipTest("pymupdf and Pillow are needed to render a real PDF")
+        make_project(self.root)
+        doc = fitz.open()
+        doc.new_page(width=595, height=842).insert_text((72, 72), "hello")
+        doc.save(self.root / "static" / "resume.pdf")
+        site = build_site(self.root)
+        index = self.read(site, "index.html")
+        files = sorted(p.name for p in (site.out / "preview").iterdir())
+        self.assertTrue(files and all(f.endswith(".webp") for f in files), files)
+        self.assertIn("srcset=", index)
+        self.assertIn('sizes="calc(100vw - 3rem)"', index)
+        self.assertEqual(index.count("<img"), 1)
+        for f in files:
+            self.assertIn(f"preview/{f} ", index + " ")   # every file is listed in the srcset
+
+    def test_images_mode_uses_files_and_no_plugin(self):
+        try:
+            import fitz  # pymupdf
+            import PIL   # noqa: F401
+        except ImportError:
+            self.skipTest("pymupdf and Pillow are needed to render a real PDF")
+        make_project(self.root, extra='pdf_preview = "images"')
+        doc = fitz.open()
+        doc.new_page(width=595, height=842).insert_text((72, 72), "hello")
+        doc.save(self.root / "static" / "resume.pdf")
+        site = build_site(self.root)
+        index = self.read(site, "index.html")
+        self.assertNotIn("<object", index)       # a PDF plugin blocks the back/forward cache
+        self.assertNotIn("data:image", index)    # images are files, not inlined
+        self.assertIn("srcset=", index)
+        self.assertTrue(list((site.out / "preview").glob("*.webp")))
+
     def test_clean_urls(self):
         make_project(self.root)
         index = self.read(build_site(self.root, clean_urls=True), "index.html")
