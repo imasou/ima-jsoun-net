@@ -2,22 +2,6 @@
 
 > Mechanical Engineering with Robotics student at Sussex University.
 
--
-
----
-
-## interests
-
--
-
----
-
-## projects
-
-### -
-
--
-
 ---
 
 ## resumé
