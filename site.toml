@@ -21,9 +21,9 @@ preload_fonts = [             # fonts in static/fonts/ that are used above the f
 
 # Optional extra link at the end of the page list, for another site of yours.
 # Delete this table to remove it.
-[other_site]
-label = "blog"
-url = "https://blog.jsoun.net/"
+#[other_site]
+#label = "blog"
+#url = "https://blog.jsoun.net/"
 
 # Pages: each needs content/<file>.md. The first entry must be "index" (the home page).
 [[pages]]
